@@ -1,0 +1,47 @@
+#推包至发布服务器
+echo "推包至服务器$host_ip"
+echo "mco puppet runonce --tags release -F ip=${host_ip}"
+mco puppet runonce --tags release -F ip=${host_ip}
+if [ $? -ne 0 ];then
+	read -p  "推包出错，请按ctrl+c结束脚本" a
+fi
+echo "正在推包,请等待(1min)......"
+sleep 60
+echo "完成推包！"
+echo ""
+
+#备份程序文件
+echo "备份$host_ip 程序文件"
+echo "mco puppet runonce --tags site_bak -F ip=${host_ip}"
+mco puppet runonce --tags site_bak -F ip=${host_ip}
+if [ $? -ne 0 ];then
+	read -p  "备份${host_ip}程序文件出错，请按ctrl+c结束脚本" a
+fi	
+echo "正在备份,请等待(1min)......"
+sleep 60
+
+#确定备份是否成功
+backup_file_status=`${LOCAL_COMMAND} "SELECT backup_file_status FROM release_db.${LOCAL_TABLE} WHERE host_ip='${host_ip}' AND site_name='${SITE_NAME}' "`
+if [ "$backup_file_status" -eq 1 ];then
+	echo "完成备份${host_ip}程序文件"
+	echo ""
+#发布程序文件
+	echo "发布$host_ip 程序文件"
+	echo "mco puppet runonce --tags site_release -F ip=${host_ip}"
+	mco puppet runonce --tags site_release -F ip=${host_ip}
+	if [ $? -ne 0 ];then
+		read -p  "发布${host_ip}程序文件出错，请按ctrl+c结束脚本" a
+	fi
+	echo "正在发布,请等待(1min)......"
+	sleep 60
+#确定发布是否成功
+	release_file_status=`${LOCAL_COMMAND} "SELECT release_file_status FROM release_db.${LOCAL_TABLE} WHERE host_ip='${host_ip}' AND site_name='${SITE_NAME}' "`
+	if [ "$release_file_status" -eq 1 ];then
+		echo "完成发布${host_ip}程序文件"
+		echo ""
+	else
+		read -p  "发布${host_ip}程序文件出错，请按ctrl+c结束脚本" a
+	fi
+else
+	read -p  "备份${host_ip}程序文件出错，请按ctrl+c结束脚本" a
+fi
